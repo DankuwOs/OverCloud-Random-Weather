@@ -1,0 +1,18 @@
+{
+  "name": "OvercloudRandomWeather",
+  "description": "Adds random weather. Disables Overcloud if you're loading into a nighttime scenario.",
+  "dll_file": "",
+  "last_edit": 637643586747193646,
+  "pub_id": "",
+  "json_version": "",
+  "version": "1.0.0",
+  "tagline": "Todays 13.3 minute weather forecast shows a high chance of GRAY!",
+  "repository": "",
+  "is_public": false,
+  "unlisted": false,
+  "preview_image": "",
+  "web_preview_image": "",
+  "dependencies": [],
+  "mod_dependencies": null,
+  "ContentType": 0
+}
