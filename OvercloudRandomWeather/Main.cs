@@ -31,7 +31,6 @@ namespace OvercloudRandomWeather
         public bool settingsChanged;
 
         public static string currentEnv; // Current environment (day, night, morning)
-        public static string currentDescEnv; // Current environment in the description
         public bool overcloudSet = false;
 
         public static bool runTimer = false;
