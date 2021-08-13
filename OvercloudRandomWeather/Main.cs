@@ -243,7 +243,7 @@ namespace OvercloudRandomWeather
 
                     break;
                 case VTOLScenes.VehicleConfiguration:
-                    if(PilotSaveManager.currentScenario.mapSceneName != "Akutan")
+                    if(settings.useOvercloud == true && PilotSaveManager.currentScenario.mapSceneName != "Akutan")
                     {
                         GameSettings.SetGameSettingValue("USE_OVERCLOUD", true, true);
                     }
