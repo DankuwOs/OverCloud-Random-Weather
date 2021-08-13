@@ -34,6 +34,7 @@ namespace OvercloudRandomWeather
         public static string currentDescEnv; // Current environment in the description
         public bool overcloudSet = false;
 
+        public static bool runTimer = false;
         private static Timer rwTimer; // Random weather timer
         private static Timer ocTimer; // Timer that does the Overcloud stuffs
 
@@ -92,6 +93,7 @@ namespace OvercloudRandomWeather
 
         private static void StartRandomWeatherTimer() // Starts the random weather timer,
         {
+
             rwTimer = new Timer(settings.randomWeatherTimerLength * 1000);
             rwTimer.Elapsed += RandomWeatherTimerElapsed;
             rwTimer.AutoReset = true;
@@ -164,6 +166,7 @@ namespace OvercloudRandomWeather
 
         void StartOvercloudTimer() // Starts the Overcloud timer. Use ocTimer.Stop(); and ocTimer.Dispose(); to stop.
         {
+            runTimer = true;
             ocTimer = new Timer(100);
             ocTimer.Elapsed += OvercloudElapsed; // Each time ocTimer elapses it runs OvercloudElapsed.
             ocTimer.AutoReset = true;
@@ -195,8 +198,9 @@ namespace OvercloudRandomWeather
 
         public void StopRandomWeatherTimer() // Stops the Random Weather Timer, obviously..
         {
-                rwTimer.Stop();
-                rwTimer.Dispose();
+            runTimer = false;
+            rwTimer.Stop();
+            rwTimer.Dispose();
         }
 
         public void StopOvercloudTimer()
@@ -266,43 +270,56 @@ namespace OvercloudRandomWeather
 
         void Update()
         {
-            string[] weatherPresets = {
+            if (settings.useOvercloud == true)
+            {
+                string[] weatherPresets = {
                         "Clear", "Broken", "Overcast", "Foggy", "Rain", "Storm"
                         };
 
-            if (Rewired.ReInput.controllers.Keyboard.GetKeyDown(KeyCode.Alpha1))
-            {
-                StopRandomWeatherTimer();
-                OC.OverCloud.SetWeatherPreset(weatherPresets[0], 1f);
-            }
-            if (Rewired.ReInput.controllers.Keyboard.GetKeyDown(KeyCode.Alpha2))
-            {
-                StopRandomWeatherTimer();
-                OC.OverCloud.SetWeatherPreset(weatherPresets[1], 1f);
-            }
-            if (Rewired.ReInput.controllers.Keyboard.GetKeyDown(KeyCode.Alpha3))
-            {
-                StopRandomWeatherTimer();
-                OC.OverCloud.SetWeatherPreset(weatherPresets[2], 1f);
-            }
-            if (Rewired.ReInput.controllers.Keyboard.GetKeyDown(KeyCode.Alpha4))
-            {
-                StopRandomWeatherTimer();
-                OC.OverCloud.SetWeatherPreset(weatherPresets[3], 1f);
-            }
-            if (Rewired.ReInput.controllers.Keyboard.GetKeyDown(KeyCode.Alpha5))
-            {
-                StopRandomWeatherTimer();
-                OC.OverCloud.SetWeatherPreset(weatherPresets[4], 1f);
-            }
-            if (Rewired.ReInput.controllers.Keyboard.GetKeyDown(KeyCode.Alpha6))
-            {
-                StopRandomWeatherTimer();
-                OC.OverCloud.SetWeatherPreset(weatherPresets[5], 1f);
-            }
-            if (Rewired.ReInput.controllers.Keyboard.GetKeyDown(KeyCode.M))
-            {
-                StartRandomWeatherTimer();
+                if (Rewired.ReInput.controllers.Keyboard.GetKeyDown(KeyCode.Alpha1))
+                {
+                    StopRandomWeatherTimer();
+                    runTimer = false;
+                    OC.OverCloud.SetWeatherPreset(weatherPresets[0], 1f);
+                }
+                if (Rewired.ReInput.controllers.Keyboard.GetKeyDown(KeyCode.Alpha2))
+                {
+                    StopRandomWeatherTimer();
+                    runTimer = false;
+                    OC.OverCloud.SetWeatherPreset(weatherPresets[1], 1f);
+                }
+                if (Rewired.ReInput.controllers.Keyboard.GetKeyDown(KeyCode.Alpha3))
+                {
+                    StopRandomWeatherTimer();
+                    runTimer = false;
+                    OC.OverCloud.SetWeatherPreset(weatherPresets[2], 1f);
+                }
+                if (Rewired.ReInput.controllers.Keyboard.GetKeyDown(KeyCode.Alpha4))
+                {
+                    StopRandomWeatherTimer();
+                    runTimer = false;
+                    OC.OverCloud.SetWeatherPreset(weatherPresets[3], 1f);
+                }
+                if (Rewired.ReInput.controllers.Keyboard.GetKeyDown(KeyCode.Alpha5))
+                {
+                    StopRandomWeatherTimer();
+                    runTimer = false;
+                    OC.OverCloud.SetWeatherPreset(weatherPresets[4], 1f);
+                }
+                if (Rewired.ReInput.controllers.Keyboard.GetKeyDown(KeyCode.Alpha6))
+                {
+                    StopRandomWeatherTimer();
+                    runTimer = false;
+                    OC.OverCloud.SetWeatherPreset(weatherPresets[5], 1f);
+                }
+                if (Rewired.ReInput.controllers.Keyboard.GetKeyDown(KeyCode.M))
+                {
+                    if (runTimer == false)
+                    {
+                        StartRandomWeatherTimer();
+                        runTimer = true;
+                    }
+                }
             }
         }
 
