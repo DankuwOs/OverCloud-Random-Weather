@@ -20,8 +20,11 @@ namespace OvercloudRandomWeather
         public static void Postfix(ref Text ___envSelectText)
         {
             CampaignScenario currentScenario = PilotSaveManager.currentScenario;
+
             ___envSelectText.text = VTLocalizationManager.GetString(string.Format("env_{0}", currentScenario.envOptions[currentScenario.envIdx].envLabel.ToLower()), currentScenario.envOptions[currentScenario.envIdx].envLabel.ToLower());
-            if(___envSelectText.text.ToLower() == "day" || ___envSelectText.text.ToLower() == "morning" || ___envSelectText.text.ToLower() == "night")
+
+            // If this if statement is gone, when you launch the scenario, it'll be set to nothing which causes the loop to set use overcloud to false.
+            if (___envSelectText.text.ToLower() == "day" || ___envSelectText.text.ToLower() == "morning" || ___envSelectText.text.ToLower() == "night")
             {
                 Main.currentEnv = ___envSelectText.text.ToLower();
             }

@@ -31,6 +31,7 @@ namespace OvercloudRandomWeather
         public bool settingsChanged;
 
         public static string currentEnv; // Current environment (day, night, morning)
+        public static string currentDescEnv; // Current environment in the description
         public bool overcloudSet = false;
 
         private static Timer rwTimer; // Random weather timer
@@ -174,13 +175,17 @@ namespace OvercloudRandomWeather
             var getScenario = PilotSaveManager.currentScenario;
             if (getScenario.mapSceneName == "CustomMapBase" || getScenario.mapSceneName == "CustomMapBase_OverCloud") // If this isn't here it'll run on Akutan, which results in a black screen.
             {
+                if (getScenario.environmentName == "night")
+                {
+                    GameSettings.SetGameSettingValue("USE_OVERCLOUD", false, true);
+                }
                 if (currentEnv == "day" || currentEnv == "morning")
                 {
                     GameSettings.SetGameSettingValue("USE_OVERCLOUD", true, true);
                 }
                 else
                 {
-                    if (currentEnv == "night") // Night (also morningish, but it looks fine enough) has shadows from an invisible sun or something.
+                    if (currentEnv == "night") // Night (also morningish, but it looks fine enough) has shadows from an invisible sun or something. Setting to false incase its true.
                     {
                         GameSettings.SetGameSettingValue("USE_OVERCLOUD", false, true);
                     }
@@ -234,6 +239,10 @@ namespace OvercloudRandomWeather
 
                     break;
                 case VTOLScenes.VehicleConfiguration:
+                    if(PilotSaveManager.currentScenario.mapSceneName != "Akutan")
+                    {
+                        GameSettings.SetGameSettingValue("USE_OVERCLOUD", true, true);
+                    }
                     if (settings.useOvercloud == true)
                     {
                         StartOvercloudTimer();
