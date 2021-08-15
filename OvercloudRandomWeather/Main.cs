@@ -23,7 +23,12 @@ namespace OvercloudRandomWeather
     {
         public bool useOvercloud = true;
         public bool useOvercloudRandomWeather = true;
+        public bool doNightTime = false;
         public int randomWeatherTimerLength = 800;
+        public bool useDynamicTimeOfDay = false;
+        public int dynamicTimeOfDaySpeed = 120;
+        public float volumetricCloudRadius = 6000f;
+        public float particleCount = 4000f;
     }
     public class Main : VTOLMOD
     {
@@ -31,11 +36,11 @@ namespace OvercloudRandomWeather
         public bool settingsChanged;
 
         public static string currentEnv; // Current environment (day, night, morning)
-        public bool overcloudSet = false;
 
         public static bool runTimer = false;
         private static Timer rwTimer; // Random weather timer
         private static Timer ocTimer; // Timer that does the Overcloud stuffs
+        private static Timer ocTimerSelect; // Timer that does the Overcloud stuffs if selectableEnv = false
 
 
         public static string weatherName;
@@ -44,7 +49,13 @@ namespace OvercloudRandomWeather
 
         public UnityAction<bool> overcloud_changed; 
         public UnityAction<bool> overcloudRandomWeather_changed;
+        public UnityAction<bool> doNightTime_changed;
         public UnityAction<int> randomWeatherTimerLength_changed;
+        public UnityAction<bool> dynamicTimeOfDay_changed;
+        public UnityAction<int> dynamicTimeOfDaySpeed_changed;
+        public UnityAction<float> volumetricCloudRadius_changed;
+        public UnityAction<float> particleCount_changed;
+
 
         public override void ModLoaded()
         {
@@ -79,13 +90,53 @@ namespace OvercloudRandomWeather
 
 
             modSettings.CreateCustomLabel("");
+
+            doNightTime_changed += doNightTime_changed;
+            modSettings.CreateCustomLabel("  Allow night time? Note: Water is really bright, don't know if I can fix this.");
+            modSettings.CreateBoolSetting("  Night Time | Default: False", doNightTime_changed, settings.doNightTime);
+
+
+            modSettings.CreateCustomLabel("");
             
 
             randomWeatherTimerLength_changed += RandomWeatherTimerLength_Setting;
             modSettings.CreateCustomLabel("  Random Weather Timer Length | Default: 800");
-            modSettings.CreateIntSetting("         (in seconds)", randomWeatherTimerLength_changed, settings.randomWeatherTimerLength);
+            modSettings.CreateIntSetting("  (in seconds)", randomWeatherTimerLength_changed, settings.randomWeatherTimerLength);
+
+
+            modSettings.CreateCustomLabel("");
+
+            dynamicTimeOfDay_changed += DynamicTimeOfDay_Setting;
+            modSettings.CreateBoolSetting("  Dynamic Time Of Day | Default: False", dynamicTimeOfDay_changed, settings.useDynamicTimeOfDay);
+
+
+            modSettings.CreateCustomLabel("");
+
+
+            dynamicTimeOfDaySpeed_changed += DynamicTimeOfDaySpeed_Setting;
+            modSettings.CreateCustomLabel("  Dynamic Time Of Day Speed | Default: 120 | 1 Is realtime,");
+            modSettings.CreateIntSetting("  60 is 1 minute every second", dynamicTimeOfDaySpeed_changed, settings.dynamicTimeOfDaySpeed);
+
+
+            modSettings.CreateCustomLabel("");
+
+
+            volumetricCloudRadius_changed += VolumetricCloudRadius_Setting;
+            modSettings.CreateCustomLabel("  Volumetric Cloud Radius | Default: 6000 | After this radius the clouds");
+            modSettings.CreateFloatSetting("  become 2D | Min: 0 Max: 64000", volumetricCloudRadius_changed, settings.volumetricCloudRadius, 0, 64000);
+
+
+            modSettings.CreateCustomLabel("");
+
+
+            particleCount_changed += ParticleCount_Setting;
+            modSettings.CreateCustomLabel("  Particle Count | Default: 4000 | Keep this to around half of the Vol ");
+            modSettings.CreateFloatSetting("  Cloud Radius | Min: 0 Max: 32000", particleCount_changed, settings.particleCount, 0, 32000);
+
+
 
             VTOLAPI.CreateSettingsMenu(modSettings);
+
         }
 
 
@@ -128,7 +179,7 @@ namespace OvercloudRandomWeather
                     weatherName = "drip drop! Open that canopy";
                     break;
                 case "Storm":
-                    weatherName = "fuzzy men in your area! Get zippity zapped now";
+                    weatherName = "atmospheric men in your area! Get your own shimmering puff of indistinct love now";
                     break;
             }
 
@@ -165,30 +216,66 @@ namespace OvercloudRandomWeather
 
         void StartOvercloudTimer() // Starts the Overcloud timer. Use ocTimer.Stop(); and ocTimer.Dispose(); to stop.
         {
-            runTimer = true;
+            runTimer = true; // Im scared to touch this, because I'm too lazy to try and figure out what it does and why I added it
             ocTimer = new Timer(100);
             ocTimer.Elapsed += OvercloudElapsed; // Each time ocTimer elapses it runs OvercloudElapsed.
             ocTimer.AutoReset = true;
             ocTimer.Start();
         }
 
-        void OvercloudElapsed(object sender, ElapsedEventArgs e) 
+        void OvercloudElapsed(object sender, ElapsedEventArgs e)
         {
             var getScenario = PilotSaveManager.currentScenario;
+
             if (getScenario.mapSceneName == "CustomMapBase" || getScenario.mapSceneName == "CustomMapBase_OverCloud") // If this isn't here it'll run on Akutan, which results in a black screen.
             {
-                if (getScenario.environmentName == "night")
-                {
-                    GameSettings.SetGameSettingValue("USE_OVERCLOUD", false, true);
-                }
-                if (currentEnv == "day" || currentEnv == "morning")
+                if (settings.doNightTime == true)
                 {
                     GameSettings.SetGameSettingValue("USE_OVERCLOUD", true, true);
                 }
+
+                if (settings.doNightTime == false && currentEnv != "night")
+                {
+                    GameSettings.SetGameSettingValue("USE_OVERCLOUD", true, true);
+                }
+
+                if (settings.doNightTime == false && currentEnv == "night")
+                {
+                    GameSettings.SetGameSettingValue("USE_OVERCLOUD", false, true);
+                }
+            }
+        }
+
+        void StartOvercloudSelectTimer() // Starts the Overcloud timer. Use ocTimer.Stop(); and ocTimer.Dispose(); to stop.
+        {
+            runTimer = true;
+            ocTimerSelect = new Timer(100);
+            ocTimerSelect.Elapsed += OvercloudSelectElapsed; // Each time ocTimer elapses it runs OvercloudElapsed.
+            ocTimerSelect.AutoReset = true;
+            ocTimerSelect.Start();
+        }
+
+        void OvercloudSelectElapsed(object sender, ElapsedEventArgs e)
+        {
+            var getScenario = PilotSaveManager.currentScenario;
+
+            if (getScenario.mapSceneName == "CustomMapBase" || getScenario.mapSceneName == "CustomMapBase_OverCloud") // If this isn't here it'll run on Akutan, which results in a black screen.
+            {
+                if (settings.doNightTime == true)
+                {
+                    GameSettings.SetGameSettingValue("USE_OVERCLOUD", true, true);
+                    Debug.Log("doNightTime is true, enabling OC");
+                }
                 else
                 {
-                    if (currentEnv == "night") // Night (also morningish, but it looks fine enough) has shadows from an invisible sun or something. Setting to false incase its true.
+                    if (getScenario.environmentName != "night")
                     {
+                        Debug.Log("environmentName is Day or Morning, attempting to set OC to true");
+                        GameSettings.SetGameSettingValue("USE_OVERCLOUD", true, true);
+                    }
+                    else
+                    {
+                        Debug.Log("environmentName is Night, attempting to set OC to false");
                         GameSettings.SetGameSettingValue("USE_OVERCLOUD", false, true);
                     }
                 }
@@ -207,6 +294,13 @@ namespace OvercloudRandomWeather
             ocTimer.Stop();
             ocTimer.Dispose();
         }
+        public void StopOvercloudSelectTimer()
+        {
+            ocTimerSelect.Stop();
+            ocTimerSelect.Dispose();
+        }
+
+
 
 
 
@@ -220,9 +314,36 @@ namespace OvercloudRandomWeather
             settings.useOvercloudRandomWeather = newval;
             settingsChanged = true;
         }
+        public void DoNightTime_Setting(bool newval)
+        {
+            settings.doNightTime = newval;
+            settingsChanged = true;
+        }
         public void RandomWeatherTimerLength_Setting(int newval)
         {
             settings.randomWeatherTimerLength = newval;
+            settingsChanged = true;
+        }
+
+        public void DynamicTimeOfDay_Setting(bool newval)
+        {
+            settings.useDynamicTimeOfDay = newval;
+            settingsChanged = true;
+        }
+
+        public void DynamicTimeOfDaySpeed_Setting(int newval)
+        {
+            settings.dynamicTimeOfDaySpeed = newval;
+            settingsChanged = true;
+        }
+        public void VolumetricCloudRadius_Setting(float newval)
+        {
+            settings.volumetricCloudRadius = newval;
+            settingsChanged = true;
+        }
+        public void ParticleCount_Setting(float newval)
+        {
+            settings.particleCount = Mathf.RoundToInt(newval);
             settingsChanged = true;
         }
 
@@ -234,21 +355,28 @@ namespace OvercloudRandomWeather
 
             switch (scene)
             {
-                case VTOLScenes.ReadyRoom: // Using ReadyRoom (main menu) to reset the stuffs since it's where leaving VehicleConfiguration and CustomMapBase leads.
+                case VTOLScenes.ReadyRoom:
                     StopRandomWeatherTimer();
                     StopOvercloudTimer();
-                    GameSettings.SetGameSettingValue("USE_OVERCLOUD", false, true);
-                    currentEnv = null;
+                    StopOvercloudSelectTimer();
 
                     break;
                 case VTOLScenes.VehicleConfiguration:
-                    if(settings.useOvercloud == true && PilotSaveManager.currentScenario.mapSceneName != "Akutan")
+                    GameSettings.SetGameSettingValue("USE_OVERCLOUD", false, true);
+                    if (settings.useOvercloud == true && PilotSaveManager.currentScenario.mapSceneName != "Akutan")
                     {
                         GameSettings.SetGameSettingValue("USE_OVERCLOUD", true, true);
-                    }
-                    if (settings.useOvercloud == true)
-                    {
-                        StartOvercloudTimer();
+
+                        if (VTScenario.currentScenarioInfo.selectableEnv == true)
+                        {
+                            StartOvercloudTimer();
+                        }
+                        else
+                        {
+                            StartOvercloudSelectTimer();
+                            Debug.Log("Starting OverCloudSelectTimer");
+                        }
+
                     }
 
                     break;
@@ -262,13 +390,13 @@ namespace OvercloudRandomWeather
                     {
                         StartRandomWeatherTimer();
                     }
-
                     break;
             }
         }
 
-        void Update()
+        public void Update()
         {
+
             if (settings.useOvercloud == true)
             {
                 string[] weatherPresets = {
@@ -319,22 +447,34 @@ namespace OvercloudRandomWeather
                         runTimer = true;
                     }
                 }
+
+                if (PilotSaveManager.currentScenario.mapSceneName != "Akutan")
+                {
+                    SkyStuffs.DisableNGSS_Directional();
+                }
+
+                if (settings.useDynamicTimeOfDay == true)
+                {
+                    SkyStuffs.EnableDynamicTimeOfDay();
+                }
+
+                SkyStuffs.UpdateCloudSettings();
             }
         }
 
 
-        private void MissionReloaded() // Honestly I just copied this from Cheeeese.
+        private void MissionReloaded()
         {
             CheckSave();
         }
 
         private void OnApplicationQuit() // If you're ingame with overcloud enabled and quit the whole game, this should prevent it from being enabled and fucking you later.
         {
-            CheckSave();
             GameSettings.SetGameSettingValue("USE_OVERCLOUD", false, true);
+            CheckSave();
         }
 
-        // The code below was yoinked from cheeeese, I don't know what it does but you can just copy it.
+        // The code below was yoinked from cheeeese, I don't know how it works.
         private void CheckSave() 
         {
             if (settingsChanged == true)

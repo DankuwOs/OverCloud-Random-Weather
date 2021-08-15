@@ -72,8 +72,10 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="EnvironmentPatch.cs" />
+    <Compile Include="EnvironmentPatch1.cs" />
     <Compile Include="Main.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="SkyStuffs.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
