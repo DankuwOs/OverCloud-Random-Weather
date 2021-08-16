@@ -71,6 +71,7 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="BiomePatch.cs" />
     <Compile Include="EnvironmentPatch.cs" />
     <Compile Include="EnvironmentPatch1.cs" />
     <Compile Include="Main.cs" />

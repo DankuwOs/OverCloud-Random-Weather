@@ -25,7 +25,6 @@ namespace OvercloudRandomWeather
 
             // If this if statement is gone, when you launch the scenario, it'll be set to nothing which causes the loop to set use overcloud to false.
             // ME V2: I think this is useless, as I've basically got nighttime working. Only thing not right with it is the water, so this stays until then.
-            // MEV3: its not useless, for now.
             if (___envSelectText.text.ToLower() == "day" || ___envSelectText.text.ToLower() == "morning" || ___envSelectText.text.ToLower() == "night")
             {
                 Main.currentEnv = ___envSelectText.text.ToLower();

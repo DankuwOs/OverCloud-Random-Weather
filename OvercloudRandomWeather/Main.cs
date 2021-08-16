@@ -27,6 +27,7 @@ namespace OvercloudRandomWeather
         public int randomWeatherTimerLength = 800;
         public bool useDynamicTimeOfDay = false;
         public int dynamicTimeOfDaySpeed = 120;
+        public bool doLatLong = false;
         public float volumetricCloudRadius = 6000f;
         public float particleCount = 4000f;
     }
@@ -36,6 +37,7 @@ namespace OvercloudRandomWeather
         public bool settingsChanged;
 
         public static string currentEnv; // Current environment (day, night, morning)
+        public static string currentBiome; // Current biome, for the suns position in the sky
 
         public static bool runTimer = false;
         private static Timer rwTimer; // Random weather timer
@@ -53,6 +55,7 @@ namespace OvercloudRandomWeather
         public UnityAction<int> randomWeatherTimerLength_changed;
         public UnityAction<bool> dynamicTimeOfDay_changed;
         public UnityAction<int> dynamicTimeOfDaySpeed_changed;
+        public UnityAction<bool> doLatLong_changed;
         public UnityAction<float> volumetricCloudRadius_changed;
         public UnityAction<float> particleCount_changed;
 
@@ -117,21 +120,29 @@ namespace OvercloudRandomWeather
             modSettings.CreateCustomLabel("  Dynamic Time Of Day Speed | Default: 120 | 1 Is realtime,");
             modSettings.CreateIntSetting("  60 is 1 minute every second", dynamicTimeOfDaySpeed_changed, settings.dynamicTimeOfDaySpeed);
 
+            modSettings.CreateCustomLabel("");
+
+            doLatLong_changed += DoLatLong_Setting;
+            modSettings.CreateCustomLabel("  Use latitude / longitude of the biome of the map you're on?");
+            modSettings.CreateBoolSetting("  Use Lat / Long | Default: False", doLatLong_changed, settings.doLatLong);
+
 
             modSettings.CreateCustomLabel("");
 
 
             volumetricCloudRadius_changed += VolumetricCloudRadius_Setting;
             modSettings.CreateCustomLabel("  Volumetric Cloud Radius | Default: 6000 | After this radius the clouds");
-            modSettings.CreateFloatSetting("  become 2D | Min: 0 Max: 64000", volumetricCloudRadius_changed, settings.volumetricCloudRadius, 0, 64000);
+            modSettings.CreateCustomLabel("  become 2D, when adjusting this you should also change Particle Count");
+            modSettings.CreateFloatSetting("  Cloud Radius | Min: 0 Max: 64000", volumetricCloudRadius_changed, settings.volumetricCloudRadius, 0, 64000);
 
 
             modSettings.CreateCustomLabel("");
 
 
             particleCount_changed += ParticleCount_Setting;
-            modSettings.CreateCustomLabel("  Particle Count | Default: 4000 | Keep this to around half of the Vol ");
-            modSettings.CreateFloatSetting("  Cloud Radius | Min: 0 Max: 32000", particleCount_changed, settings.particleCount, 0, 32000);
+            modSettings.CreateCustomLabel("  Particle Count | Default: 4000 | Keep this to around half of the");
+            modSettings.CreateCustomLabel("  Volumetric Cloud Radius");
+            modSettings.CreateFloatSetting("  Particle Count | Min: 0 Max: 32000", particleCount_changed, settings.particleCount, 0, 32000);
 
 
 
@@ -336,6 +347,11 @@ namespace OvercloudRandomWeather
             settings.dynamicTimeOfDaySpeed = newval;
             settingsChanged = true;
         }
+        public void DoLatLong_Setting(bool newval)
+        {
+            settings.doLatLong = newval;
+            settingsChanged = true;
+        }
         public void VolumetricCloudRadius_Setting(float newval)
         {
             settings.volumetricCloudRadius = newval;
@@ -459,6 +475,11 @@ namespace OvercloudRandomWeather
                 }
 
                 SkyStuffs.UpdateCloudSettings();
+
+                if (settings.doLatLong == true)
+                {
+                    SkyStuffs.SunPositionInSky();
+                }
             }
         }
 
