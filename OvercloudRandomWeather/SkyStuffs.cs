@@ -54,7 +54,7 @@ namespace OvercloudRandomWeather
         public static void EnableDynamicTimeOfDay()
         {
             OC.OverCloud.timeOfDay.enable = true;
-            OC.OverCloud.timeOfDay.playSpeed = 1000f;
+            OC.OverCloud.timeOfDay.playSpeed = Main.settings.dynamicTimeOfDaySpeed;
             OC.OverCloud.timeOfDay.Advance();
         }
 
