@@ -2,6 +2,15 @@
 Adds random weather. Disables Overcloud if you're loading into a nighttime scenario.
 
 # Features
-- Enable or disable Overcloud from ingame
-- If you're loading into a nighttime scenario it'll disable Overcloud
-- Random Weather, randomly chooses from a list of presets at a customizable interval
+- Random Weather at customizable intervals.
+
+- OverCloud will be disabled if you load into Akutan, or night time if you have that disabled.
+
+- Time Of Day, at a customizable speed.
+
+- Change the suns path based on the biome of your scenario.
+
+- A setting to set particle count and cloud distance for you to try and maximize quality to performance.
+
+ - Got rid of that stupid invisible sun.
+
