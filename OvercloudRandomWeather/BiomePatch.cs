@@ -23,9 +23,10 @@ namespace OvercloudRandomWeather
     public static class BiomeStuffs
     {
         [HarmonyPrefix]
-        public static void Postfix(VTMapGenerator __instance)
+        public static void Prefix(VTMapGenerator __instance)
         {
             Main.currentBiome = __instance.biome.ToString();
+            Debug.Log("Current biome is " + Main.currentBiome + ". OCRW");
         }
     }
 

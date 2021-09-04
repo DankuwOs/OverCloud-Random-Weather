@@ -22,6 +22,8 @@ namespace OvercloudRandomWeather
     public class OCsettings // Settings in the mod settings page
     {
         public bool useOvercloud = true;
+        public bool disableCloudsOnly = false;
+        public bool fixWater = false;
         public bool useOvercloudRandomWeather = true;
         public bool doNightTime = false;
         public int randomWeatherTimerLength = 800;
@@ -32,33 +34,35 @@ namespace OvercloudRandomWeather
         public float particleCount = 4000f;
         public bool usePresetOnLoad = false;
         public int presetToUse = 2;
+        public bool disableAtmosphere = false;
     }
     public class Main : VTOLMOD
     {
         public static OCsettings settings;
         public bool settingsChanged;
-
         public static string currentEnv; // Current environment (day, night, morning)
         public static string currentBiome; // Current biome, for the suns position in the sky
+        public static string envName; // Env name for water timer.
         public static string[] weatherPresets = {
                         "Clear", "Broken", "Overcast", "Foggy", "Rain", "Storm"
                         };
         public static Light ngss_Directional;
         public static bool sceneLoaded = false;
+        public static bool isAkutan;
 
         public static bool runTimer = false;
         private static Timer rwTimer; // Random weather timer
         private static Timer ocTimer; // Timer that does the Overcloud stuffs
         private static Timer ocTimerSelect; // Timer that does the Overcloud stuffs if selectableEnv = false
-        private static Timer ngssTimer; // NGSS_Directional Light timer.
         public static int timerInt;
-
 
         public static string weatherName;
         public static double weatherForecastLength;
         public static string weatherForecastTime;
 
         public UnityAction<bool> overcloud_changed;
+        public UnityAction<bool> disableCloudsOnly_changed;
+        public UnityAction<bool> fixWater_changed;
         public UnityAction<bool> overcloudRandomWeather_changed;
         public UnityAction<bool> doNightTime_changed;
         public UnityAction<int> randomWeatherTimerLength_changed;
@@ -69,6 +73,7 @@ namespace OvercloudRandomWeather
         public UnityAction<float> particleCount_changed;
         public UnityAction<bool> usePresetOnLoad_changed;
         public UnityAction<int> presetToUse_changed;
+        public UnityAction<bool> disableAtmosphere_changed;
 
 
         public override void ModLoaded()
@@ -96,6 +101,19 @@ namespace OvercloudRandomWeather
             overcloud_changed += Overcloud_Setting;
             modSettings.CreateBoolSetting("  Overcloud | Default: True", overcloud_changed, settings.useOvercloud);
 
+            modSettings.CreateCustomLabel(" ");
+
+            disableCloudsOnly_changed += DisableCloudsOnly_Setting;
+            modSettings.CreateBoolSetting("  Disable Clouds Only | Default: False", disableCloudsOnly_changed, settings.disableCloudsOnly);
+
+
+            modSettings.CreateCustomLabel(" ");
+
+            fixWater_changed += FixWater_Setting;
+            modSettings.CreateCustomLabel("  Fixes the brightness of the water at night, this comes at the cost of darker ");
+            modSettings.CreateCustomLabel("  water in the day. (sorry guys -Eyeron)");
+            modSettings.CreateBoolSetting("  Fix the Water | Default: False", fixWater_changed, settings.fixWater);
+
 
             modSettings.CreateCustomLabel("");
 
@@ -106,7 +124,7 @@ namespace OvercloudRandomWeather
             modSettings.CreateCustomLabel("");
 
             doNightTime_changed += DoNightTime_Setting;
-            modSettings.CreateCustomLabel("  Allow night time? Note: Water is really bright, don't know if I can fix this.");
+            modSettings.CreateCustomLabel("  Allow night time? Water is really bright if you go from day to night.");
             modSettings.CreateBoolSetting("  Night Time | Default: False", doNightTime_changed, settings.doNightTime);
 
 
@@ -176,6 +194,14 @@ namespace OvercloudRandomWeather
 
 
 
+            modSettings.CreateCustomLabel("");
+
+            disableAtmosphere_changed += disableAtmosphere_Setting;
+            modSettings.CreateCustomLabel("  Disable Atmosphere when you have disable clouds enabled, turns");
+            modSettings.CreateCustomLabel("  off atmospheric scattering, fog, and probably some other stuff.");
+            modSettings.CreateBoolSetting("  Disable Atmosphere | Default: False", disableAtmosphere_changed, settings.disableAtmosphere);
+
+
             VTOLAPI.CreateSettingsMenu(modSettings);
 
         }
@@ -192,10 +218,12 @@ namespace OvercloudRandomWeather
                 System.Random randomWeather = new System.Random();
                 int wIndex = randomWeather.Next(weatherPresets.Length);
                 OC.OverCloud.SetWeatherPreset(weatherPresets[wIndex], 1f);
+                Debug.Log("Preset on load is false, setting random weather preset. OCRW");
             }
             else
             {
                 OC.OverCloud.SetWeatherPreset(weatherPresets[settings.presetToUse - 1], 1f); // 2 of these, one in the sceneloaded cause I dont want to do excessive amounts of testing.
+                Debug.Log("Preset on load is true, setting weather preset to " + weatherPresets[settings.presetToUse - 1] + ". OCRW");
             }
             rwTimer.AutoReset = true;
             rwTimer.Start();
@@ -264,11 +292,11 @@ namespace OvercloudRandomWeather
 
         void StartOvercloudTimer() // Starts the Overcloud timer. Use ocTimer.Stop(); and ocTimer.Dispose(); to stop.
         {
-            runTimer = true; // Im scared to touch this, because I'm too lazy to try and figure out what it does and why I added it
             ocTimer = new Timer(100);
             ocTimer.Elapsed += OvercloudElapsed; // Each time ocTimer elapses it runs OvercloudElapsed.
             ocTimer.AutoReset = true;
             ocTimer.Start();
+            Debug.Log("Starting overcloud timer, no selectable env. OCRW");
         }
 
         void OvercloudElapsed(object sender, ElapsedEventArgs e)
@@ -296,11 +324,11 @@ namespace OvercloudRandomWeather
 
         void StartOvercloudSelectTimer() // Starts the Overcloud timer. Use ocTimer.Stop(); and ocTimer.Dispose(); to stop.
         {
-            runTimer = true;
-            ocTimerSelect = new Timer(100);
+            ocTimerSelect = new Timer(500);
             ocTimerSelect.Elapsed += OvercloudSelectElapsed; // Each time ocTimer elapses it runs OvercloudElapsed.
             ocTimerSelect.AutoReset = true;
             ocTimerSelect.Start();
+            Debug.Log("Starting overcloud timer, selectable environment is true. OCRW");
         }
 
         void OvercloudSelectElapsed(object sender, ElapsedEventArgs e)
@@ -312,7 +340,6 @@ namespace OvercloudRandomWeather
                 if (settings.doNightTime == true)
                 {
                     GameSettings.SetGameSettingValue("USE_OVERCLOUD", true, true);
-                    Debug.Log("doNightTime is true, enabling OC");
                 }
                 else
                 {
@@ -329,61 +356,26 @@ namespace OvercloudRandomWeather
                 }
             }
         }
-        void StartNGSSTimer() // Starts the Overcloud timer. Use ocTimer.Stop(); and ocTimer.Dispose(); to stop.
-        {
-            runTimer = true;
-            ngssTimer = new Timer(100);
-            ngssTimer.Elapsed += NGSSTimerElapsed; // Each time ocTimer elapses it runs OvercloudElapsed.
-            timerInt = 0;
-            ngssTimer.AutoReset = true;
-            ngssTimer.Start();
-        }
-
-        void NGSSTimerElapsed(object sender, ElapsedEventArgs e)
-        {
-            if (timerInt < 10)
-            {
-                ngss_Directional = GameObject.Find("Directional Light").GetComponent<Light>();
-                Debug.Log("Timer int = " + timerInt);
-                timerInt++;
-            }
-            else
-            {
-                timerInt = 0;
-                StopNGSSTimer();
-            }
-
-            if (PilotSaveManager.currentScenario.mapSceneName != "Akutan")
-            {
-                SkyStuffs.DisableNGSS_Directional();
-            }
-            else
-            {
-                SkyStuffs.EnableNGSS_Directional();
-            }
-        }
 
         public void StopRandomWeatherTimer() // Stops the Random Weather Timer, obviously..
         {
             runTimer = false;
             rwTimer.Stop();
             rwTimer.Dispose();
+            Debug.Log("Stopping RW timer. OCRW");
         }
 
         public void StopOvercloudTimer()
         {
             ocTimer.Stop();
             ocTimer.Dispose();
+            Debug.Log("Stopping OC selectable timer. OCRW");
         }
         public void StopOvercloudSelectTimer()
         {
             ocTimerSelect.Stop();
             ocTimerSelect.Dispose();
-        }
-        public void StopNGSSTimer()
-        {
-            ngssTimer.Stop();
-            ngssTimer.Dispose();
+            Debug.Log("Stopping OC no selectable timer. OCRW");
         }
 
 
@@ -393,6 +385,16 @@ namespace OvercloudRandomWeather
         public void Overcloud_Setting(bool newval) // Whenever you change a value in the mod settings it runs this.
         {
             settings.useOvercloud = newval;
+            settingsChanged = true;
+        }
+        public void DisableCloudsOnly_Setting(bool newval) // Whenever you change a value in the mod settings it runs this.
+        {
+            settings.disableCloudsOnly = newval;
+            settingsChanged = true;
+        }
+        public void FixWater_Setting(bool newval) // Whenever you change a value in the mod settings it runs this.
+        {
+            settings.fixWater = newval;
             settingsChanged = true;
         }
         public void OvercloudRandomWeather_Setting(bool newval)
@@ -446,13 +448,16 @@ namespace OvercloudRandomWeather
             settings.presetToUse = newval;
             settingsChanged = true;
         }
+        public void disableAtmosphere_Setting(bool newval)
+        {
+            settings.disableAtmosphere = newval;
+            settingsChanged = true;
+        }
 
 
 
         private void SceneLoaded(VTOLScenes scene)
         {
-            CheckSave();
-
             switch (scene)
             {
                 case VTOLScenes.ReadyRoom:
@@ -468,6 +473,7 @@ namespace OvercloudRandomWeather
                     {
                         GameSettings.SetGameSettingValue("USE_OVERCLOUD", true, true);
 
+
                         if (VTScenario.currentScenarioInfo.selectableEnv == true)
                         {
                             StartOvercloudTimer();
@@ -480,23 +486,65 @@ namespace OvercloudRandomWeather
                     }
 
                     break;
-                case VTOLScenes.CustomMapBase:
                 case VTOLScenes.CustomMapBase_OverCloud:
                     sceneLoaded = true;
-                    StopOvercloudTimer();
 
+                    if (VTScenario.currentScenarioInfo.selectableEnv == true)
+                    {
+                        StopOvercloudTimer();
+                    }
+                    else
+                    {
+                        StopOvercloudSelectTimer();
+                    }
+                    
                     GameSettings.TryGetGameSettingValue<bool>("USE_OVERCLOUD", out bool isOvercloudEnabled);
 
-                    if (isOvercloudEnabled == true && settings.useOvercloudRandomWeather)
+                    if (isOvercloudEnabled == true && settings.useOvercloudRandomWeather && settings.disableCloudsOnly == false)
                     {
                         StartRandomWeatherTimer();
+                        runTimer=true; // :~)
                     }
                     if (isOvercloudEnabled == true && settings.usePresetOnLoad == true)
                     {
                         OC.OverCloud.SetWeatherPreset(weatherPresets[settings.presetToUse - 1], 1f);
                     }
-                    StartNGSSTimer();
+
+                    SkyStuffs.UpdateCloudSettings();
+
+                    if (settings.doLatLong == true)
+                    {
+                        SkyStuffs.SunPositionInSky();
+                    }
+
+                    if (isOvercloudEnabled == true)
+                    {
+                        if (PilotSaveManager.currentScenario.mapSceneName != "Akutan")
+                        {
+                            SkyStuffs.DisableNGSS_Directional();
+                        }
+                    }
+                    if (settings.disableCloudsOnly == true)
+                    {
+                        DisableCloudsOnly();
+                    }
+
                     break;
+            }
+            Debug.Log("SCENE LOADED: " + scene + ". OCRW");
+            CheckSave();
+        }
+
+        public static void DisableCloudsOnly()
+        {
+            Camera[] overCloudCameras = Camera.allCameras;
+            foreach (Camera overCloudCamera in overCloudCameras)
+            {
+                overCloudCamera.GetComponent<OC.OverCloudCamera>().render2DFallback = false;
+                overCloudCamera.GetComponent<OC.OverCloudCamera>().renderRainMask = false;
+                overCloudCamera.GetComponent<OC.OverCloudCamera>().renderScatteringMask = false;
+                overCloudCamera.GetComponent<OC.OverCloudCamera>().renderVolumetricClouds = false;
+                overCloudCamera.GetComponent<OC.OverCloudCamera>().renderAtmosphere = !settings.disableAtmosphere;
             }
         }
 
@@ -510,43 +558,50 @@ namespace OvercloudRandomWeather
                     StopRandomWeatherTimer();
                     runTimer = false;
                     OC.OverCloud.SetWeatherPreset(weatherPresets[0], 1f);
+                    Debug.Log("Pressed 1, setting weather preset to: " + weatherPresets[0] + ". OCRW");
                 }
                 if (Rewired.ReInput.controllers.Keyboard.GetKeyDown(KeyCode.Alpha2))
                 {
                     StopRandomWeatherTimer();
                     runTimer = false;
                     OC.OverCloud.SetWeatherPreset(weatherPresets[1], 1f);
+                    Debug.Log("Pressed 2, setting weather preset to: " + weatherPresets[1] + ". OCRW");
                 }
                 if (Rewired.ReInput.controllers.Keyboard.GetKeyDown(KeyCode.Alpha3))
                 {
                     StopRandomWeatherTimer();
                     runTimer = false;
                     OC.OverCloud.SetWeatherPreset(weatherPresets[2], 1f);
+                    Debug.Log("Pressed 3, setting weather preset to: " + weatherPresets[2] + ". OCRW");
                 }
                 if (Rewired.ReInput.controllers.Keyboard.GetKeyDown(KeyCode.Alpha4))
                 {
                     StopRandomWeatherTimer();
                     runTimer = false;
                     OC.OverCloud.SetWeatherPreset(weatherPresets[3], 1f);
+                    Debug.Log("Pressed 4, setting weather preset to: " + weatherPresets[3] + ". OCRW");
                 }
                 if (Rewired.ReInput.controllers.Keyboard.GetKeyDown(KeyCode.Alpha5))
                 {
                     StopRandomWeatherTimer();
                     runTimer = false;
                     OC.OverCloud.SetWeatherPreset(weatherPresets[4], 1f);
+                    Debug.Log("Pressed 5, setting weather preset to: " + weatherPresets[4] + ". OCRW");
                 }
                 if (Rewired.ReInput.controllers.Keyboard.GetKeyDown(KeyCode.Alpha6))
                 {
                     StopRandomWeatherTimer();
                     runTimer = false;
                     OC.OverCloud.SetWeatherPreset(weatherPresets[5], 1f);
+                    Debug.Log("Pressed 6, setting weather preset to: " + weatherPresets[5] + ". OCRW");
                 }
                 if (Rewired.ReInput.controllers.Keyboard.GetKeyDown(KeyCode.M))
                 {
-                    if (runTimer == false)
+                    if (runTimer == false && settings.disableCloudsOnly == false)
                     {
                         StartRandomWeatherTimer();
                         runTimer = true;
+                        Debug.Log("Pressed M, starting random weather timer. OCRW");
                     }
                 }
 
@@ -555,11 +610,44 @@ namespace OvercloudRandomWeather
                     SkyStuffs.EnableDynamicTimeOfDay();
                 }
 
-                SkyStuffs.UpdateCloudSettings();
 
-                if (settings.doLatLong == true)
+
+                /* ARCTIC: OC.OverCloud.timeOfDay.latitude = 83f;
+                *         OC.OverCloud.timeOfDay.longitude = 20f;
+                *         
+                * BOREAL: OC.OverCloud.timeOfDay.latitude = 62f;
+                *         OC.OverCloud.timeOfDay.longitude = -3f;
+                *         
+                * DESERT: OC.OverCloud.timeOfDay.latitude = 28f;
+                *         OC.OverCloud.timeOfDay.longitude = 23f;
+                *
+                * TROPICAL: OC.OverCloud.timeOfDay.latitude = 1f;
+                *           OC.OverCloud.timeOfDay.longitude = 20f;
+                *
+                */
+
+                if (Rewired.ReInput.controllers.Keyboard.GetKeyDown(KeyCode.Keypad1))
                 {
-                    SkyStuffs.SunPositionInSky();
+                    OC.OverCloud.timeOfDay.latitude = 83f;
+                    OC.OverCloud.timeOfDay.longitude = 20f;
+                }
+
+                if (Rewired.ReInput.controllers.Keyboard.GetKeyDown(KeyCode.Keypad2))
+                {
+                    OC.OverCloud.timeOfDay.latitude = 62f;
+                    OC.OverCloud.timeOfDay.longitude = -3f;
+                }
+
+                if (Rewired.ReInput.controllers.Keyboard.GetKeyDown(KeyCode.Keypad3))
+                {
+                    OC.OverCloud.timeOfDay.latitude = 28f;
+                    OC.OverCloud.timeOfDay.longitude = 23f;
+                }
+
+                if (Rewired.ReInput.controllers.Keyboard.GetKeyDown(KeyCode.Keypad4))
+                {
+                    OC.OverCloud.timeOfDay.latitude = 1f;
+                    OC.OverCloud.timeOfDay.longitude = 20f;
                 }
             }
         }

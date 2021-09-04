@@ -63,6 +63,9 @@
     <Reference Include="UnityEngine.CoreModule">
       <HintPath>..\Dependencies\UnityEngine.CoreModule.dll</HintPath>
     </Reference>
+    <Reference Include="UnityEngine.IMGUIModule">
+      <HintPath>..\..\..\..\..\VTOLVR_Data\Managed\UnityEngine.IMGUIModule.dll</HintPath>
+    </Reference>
     <Reference Include="UnityEngine.UI">
       <HintPath>..\..\..\..\..\VTOLVR_Data\Managed\UnityEngine.UI.dll</HintPath>
     </Reference>
@@ -71,6 +74,9 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="EnvironmentPatch3.cs" />
+    <Compile Include="EnvironmentPatch2.cs" />
+    <Compile Include="SCamPatch.cs" />
     <Compile Include="BiomePatch.cs" />
     <Compile Include="EnvironmentPatch.cs" />
     <Compile Include="EnvironmentPatch1.cs" />

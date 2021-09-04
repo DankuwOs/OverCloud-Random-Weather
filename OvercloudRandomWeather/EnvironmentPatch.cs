@@ -28,6 +28,7 @@ namespace OvercloudRandomWeather
             if (___envSelectText.text.ToLower() == "day" || ___envSelectText.text.ToLower() == "morning" || ___envSelectText.text.ToLower() == "night")
             {
                 Main.currentEnv = ___envSelectText.text.ToLower();
+                Debug.Log("Current environment is " + Main.currentEnv + ". OCRW");
             }
         }
     }

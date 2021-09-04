@@ -21,57 +21,16 @@ namespace OvercloudRandomWeather
 {
     class SkyStuffs
     {
-
         public static void DisableNGSS_Directional() // If you've ever used OverCloud and wondered "Why is there 2 different shadows?" this is why.
         {
-            GameSettings.TryGetGameSettingValue<bool>("USE_OVERCLOUD", out bool isOvercloudEnabled);
-            if (Main.ngss_Directional.isActiveAndEnabled == true)
+            Light[] ngss_Directional;
+            ngss_Directional = GameObject.FindObjectsOfType(typeof(Light)) as Light[];
+            foreach (Light _ngss_Directional in ngss_Directional)
             {
-                if (isOvercloudEnabled == true) // I realize now I could do this in Main, but I don't want to break anything.. | Edit: I broke something
+                if (_ngss_Directional.name.Contains("Directional"))
                 {
-                    Main.ngss_Directional.intensity = 0f;
-                }
-                else
-                {
-                    if (VTScenario.current.selectableEnv == true && Main.currentEnv != "night")
-                    {
-                        Main.ngss_Directional.intensity = 1f;
-                    }
-                    if (VTScenario.current.selectableEnv == false && PilotSaveManager.currentScenario.environmentName != "night")
-                    {
-                        Main.ngss_Directional.intensity = 1f;
-                    }
-                    if (VTScenario.current.selectableEnv == true && Main.currentEnv == "night")
-                    {
-                        Main.ngss_Directional.intensity = 0.26f;
-                    }
-                    if (VTScenario.current.selectableEnv == false && PilotSaveManager.currentScenario.environmentName == "night")
-                    {
-                        Main.ngss_Directional.intensity = 0.26f;
-                    }
-                }
-            }
-        }
-
-        public static void EnableNGSS_Directional() // I encountered a bug once where NGSS_Directional was disabled, this may or may not fix it, and may or may not break something
-        {
-            if (Main.ngss_Directional.isActiveAndEnabled == true)
-            {
-                if (VTScenario.current.selectableEnv == true && Main.currentEnv != "night")
-                {
-                    Main.ngss_Directional.intensity = 1f;
-                }
-                if (VTScenario.current.selectableEnv == false && PilotSaveManager.currentScenario.environmentName != "night")
-                {
-                    Main.ngss_Directional.intensity = 1f;
-                }
-                if (VTScenario.current.selectableEnv == true && Main.currentEnv == "night")
-                {
-                    Main.ngss_Directional.intensity = 0.26f;
-                }
-                if (VTScenario.current.selectableEnv == false && PilotSaveManager.currentScenario.environmentName == "night")
-                {
-                    Main.ngss_Directional.intensity = 0.26f;
+                   _ngss_Directional.intensity = 0f;
+                    Debug.Log("Set " + _ngss_Directional.name + " intensity to 0" + ". OCRW");
                 }
             }
         }
@@ -81,17 +40,30 @@ namespace OvercloudRandomWeather
             OC.OverCloud.timeOfDay.enable = true;
             OC.OverCloud.timeOfDay.playSpeed = Main.settings.dynamicTimeOfDaySpeed;
             OC.OverCloud.timeOfDay.Advance();
+            if (OC.OverCloud.timeOfDay.time <= 4.0)
+            {
+                Shader.SetGlobalFloat("_CityLightBrightness", 1f);
+            }
+            if (OC.OverCloud.timeOfDay.time >= 4.0)
+            {
+                Shader.SetGlobalFloat("_CityLightBrightness", 0f);
+            }
+            if (OC.OverCloud.timeOfDay.time >= 15.5)
+            {
+                Shader.SetGlobalFloat("_CityLightBrightness", 1f);
+            }
         }
 
         public static void UpdateCloudSettings()
         {
             OC.OverCloud.volumetricClouds.cloudPlaneRadius = Main.settings.volumetricCloudRadius;
             OC.OverCloud.volumetricClouds.particleCount = (int)Main.settings.particleCount;
+            Debug.Log("Set cloud settings to " + OC.OverCloud.volumetricClouds.cloudPlaneRadius + " & " + OC.OverCloud.volumetricClouds.particleCount + ". OCRW");
         }
 
         public static void SunPositionInSky()
         {
-            /* ARCTIC: OC.OverCloud.timeOfDay.latitude = 89f;
+            /* ARCTIC: OC.OverCloud.timeOfDay.latitude = 83f;
              *         OC.OverCloud.timeOfDay.longitude = 20f;
              *         
              * BOREAL: OC.OverCloud.timeOfDay.latitude = 62f;
@@ -118,12 +90,12 @@ namespace OvercloudRandomWeather
 
                     break;
                 case "Arctic":
-                    OC.OverCloud.timeOfDay.latitude = 89f;
+                    OC.OverCloud.timeOfDay.latitude = 83f;
                     OC.OverCloud.timeOfDay.longitude = 20f;
 
                     break;
-                case "Tropical":
-                    OC.OverCloud.timeOfDay.latitude = 1f;
+                case "Tropical": // Tropical seems kinda boring. Giving it a unique latitude.
+                    OC.OverCloud.timeOfDay.latitude = -37f;
                     OC.OverCloud.timeOfDay.longitude = 20f;
 
                     break;

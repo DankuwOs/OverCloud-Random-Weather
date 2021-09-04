@@ -19,16 +19,20 @@ using Rewired.Utils.Interfaces;
 
 namespace OvercloudRandomWeather
 {
-    [HarmonyPatch(typeof(VTOverCloudTester), "Update")]
-    public static class EnvironmentPatch1
+    [HarmonyPatch(typeof(EnvironmentManager), "SetCurrent")]
+    public static class EnvironmentPatch3
     {
-        public static void Postfix(ref bool ___showDebug)
+        public static bool Prefix(EnvironmentManager __instance)
         {
-            if(Rewired.ReInput.controllers.Keyboard.GetKeyDown(KeyCode.N))
+            if (Main.settings.useOvercloud == true && Main.settings.fixWater == true && PilotSaveManager.currentScenario.mapSceneName != "Akutan")
             {
-                ___showDebug = !___showDebug;
-                Debug.Log("Toggled debug menu. OCRW");
+                __instance.SetEnvironment("night");
             }
+            else
+            {
+                __instance.SetEnvironment(__instance.currentEnvironment);
+            }
+            return false;
         }
     }
 }
