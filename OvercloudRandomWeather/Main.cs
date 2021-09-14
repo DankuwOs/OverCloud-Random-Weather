@@ -25,7 +25,7 @@ namespace OvercloudRandomWeather
         public bool disableCloudsOnly = false;
         public bool fixWater = false;
         public bool useOvercloudRandomWeather = true;
-        public bool doNightTime = false;
+        public bool doNightTime = true;
         public int randomWeatherTimerLength = 800;
         public bool useDynamicTimeOfDay = false;
         public int dynamicTimeOfDaySpeed = 120;
@@ -49,6 +49,7 @@ namespace OvercloudRandomWeather
         public static Light ngss_Directional;
         public static bool sceneLoaded = false;
         public static bool isAkutan;
+        public static double quickSavedTimeOfDay;
 
         public static bool runTimer = false;
         private static Timer rwTimer; // Random weather timer
@@ -465,6 +466,7 @@ namespace OvercloudRandomWeather
                     StopOvercloudTimer();
                     StopOvercloudSelectTimer();
                     sceneLoaded = false;
+                    quickSavedTimeOfDay = 25;
 
                     break;
                 case VTOLScenes.VehicleConfiguration:
@@ -484,6 +486,7 @@ namespace OvercloudRandomWeather
                         }
 
                     }
+                    quickSavedTimeOfDay = 25;
 
                     break;
                 case VTOLScenes.CustomMapBase_OverCloud:
@@ -524,6 +527,7 @@ namespace OvercloudRandomWeather
                             SkyStuffs.DisableNGSS_Directional();
                         }
                     }
+
                     if (settings.disableCloudsOnly == true)
                     {
                         DisableCloudsOnly();

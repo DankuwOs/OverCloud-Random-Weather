@@ -32,4 +32,88 @@ namespace OvercloudRandomWeather
             }
         }
     }
+
+    [HarmonyPatch(typeof(VTOverCloudTester), "Update")] // Changing the keybind for the debug menu because particle testing is a thing i think.
+    public static class EnvironmentPatch1
+    {
+        public static void Postfix(ref bool ___showDebug)
+        {
+            if (Rewired.ReInput.controllers.Keyboard.GetKeyDown(KeyCode.N))
+            {
+                ___showDebug = !___showDebug;
+                Debug.Log("Toggled debug menu. OCRW");
+            }
+        }
+    }
+
+    [HarmonyPatch(typeof(EnvironmentManager), "SetEnvironment")] // Setting the OC time of day and turning useOverCloud off and on to use the current environments water.
+    public static class EnvironmentPatch2
+    {
+        public static void Prefix(EnvironmentManager __instance)
+        {
+            if (Main.settings.useOvercloud == true && PilotSaveManager.currentScenario.mapSceneName != "Akutan")
+            {
+                if (VTScenario.currentScenarioInfo.selectableEnv == true)
+                {
+                    if (Main.currentEnv == "morning")
+                    {
+                        OC.OverCloud.timeOfDay.time = 5.0;
+                    }
+                    else
+                    if (Main.currentEnv == "night")
+                    {
+                        OC.OverCloud.timeOfDay.time = 21.0;
+                    }
+                    else
+                        OC.OverCloud.timeOfDay.time = 10.0;
+                }
+                else
+                {
+                    var getScenario = PilotSaveManager.currentScenario;
+                    if (getScenario.environmentName == "morning")
+                    {
+                        OC.OverCloud.timeOfDay.time = 5.0;
+                    }
+                    else
+                    if (getScenario.environmentName == "night")
+                    {
+                        OC.OverCloud.timeOfDay.time = 21.0;
+                    }
+                    else
+                    {
+                        OC.OverCloud.timeOfDay.time = 10.0;
+                    }
+                }
+            }
+            VTResources.useOverCloud = false;
+        }
+        public static void Postfix()
+        {
+            if (Main.settings.useOvercloud == true && PilotSaveManager.currentScenario.mapSceneName != "Akutan")
+                VTResources.useOverCloud = true;
+
+            if (Main.quickSavedTimeOfDay != 25)
+            {
+                OC.OverCloud.timeOfDay.time = Main.quickSavedTimeOfDay;
+                Debug.Log("Set OC time of day to " + OC.OverCloud.timeOfDay.time + " from " + Main.quickSavedTimeOfDay + ". OCRW");
+            }
+        }
+    }
+
+    [HarmonyPatch(typeof(EnvironmentManager), "SetCurrent")] // Setting the current environment to nighttime to use the night water instead.
+    public static class EnvironmentPatch3
+    {
+        public static bool Prefix(EnvironmentManager __instance)
+        {
+            if (Main.settings.useOvercloud == true && Main.settings.fixWater == true && PilotSaveManager.currentScenario.mapSceneName != "Akutan")
+            {
+                __instance.SetEnvironment("night");
+            }
+            else
+            {
+                __instance.SetEnvironment(__instance.currentEnvironment);
+            }
+            return false;
+        }
+    }
 }
