@@ -26,6 +26,7 @@ namespace OvercloudRandomWeather
         {
             if (Main.settings.disableCloudsOnly == true)
             {
+                Main.overCloudCamera1 = __instance.flybyCam.GetComponent<OC.OverCloudCamera>();
                 OC.OverCloudCamera overCloudCamera = __instance.flybyCam.GetComponent<OC.OverCloudCamera>();
                 overCloudCamera.render2DFallback = false;
                 overCloudCamera.renderRainMask = false;
