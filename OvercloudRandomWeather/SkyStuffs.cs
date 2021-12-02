@@ -1,21 +1,4 @@
-﻿using System;
-using System.Collections;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Timers;
-using System.Threading.Tasks;
-using UnityEngine;
-using UnityEngine.UI;
-using UnityEngine.Events;
-using System.Reflection;
-using System.IO;
-using Valve.Newtonsoft.Json;
-using Harmony;
-using TMPro;
-using Rewired.Platforms;
-using Rewired.Utils;
-using Rewired.Utils.Interfaces;
+﻿using UnityEngine;
 
 namespace OvercloudRandomWeather
 {
@@ -91,11 +74,6 @@ namespace OvercloudRandomWeather
                     break;
                 case "Arctic":
                     OC.OverCloud.timeOfDay.latitude = 83f;
-                    OC.OverCloud.timeOfDay.longitude = 20f;
-
-                    break;
-                case "Tropical": // Tropical seems kinda boring. Giving it a unique latitude.
-                    OC.OverCloud.timeOfDay.latitude = -37f;
                     OC.OverCloud.timeOfDay.longitude = 20f;
 
                     break;

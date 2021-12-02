@@ -1,21 +1,11 @@
 using System;
-using System.Collections;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using System.Timers;
-using System.Threading.Tasks;
 using UnityEngine;
-using UnityEngine.UI;
 using UnityEngine.Events;
 using System.Reflection;
 using System.IO;
 using Valve.Newtonsoft.Json;
 using Harmony;
-using TMPro;
-using Rewired.Platforms;
-using Rewired.Utils;
-using Rewired.Utils.Interfaces;
 
 namespace OvercloudRandomWeather
 {
@@ -90,6 +80,11 @@ namespace OvercloudRandomWeather
         /// Disables the atmosphere, for use with disableCloudsOnly for maybe more performance. I didn't actually check.
         /// </summary>
         public bool disableAtmosphere = false;
+
+        /// <summary>
+        /// Disables the atmosphere, but this time will disable it with clouds enabled.
+        /// </summary>
+        public bool disableAtmosphereOverall = false;
 
     }
 
@@ -174,9 +169,6 @@ namespace OvercloudRandomWeather
         /// </summary>
         public static string weatherForecastTime;
 
-
-        public static OC.OverCloudCamera overCloudCamera1;
-
         public UnityAction<bool> overcloud_changed;
         public UnityAction<bool> disableCloudsOnly_changed;
         public UnityAction<bool> fixWater_changed;
@@ -191,12 +183,13 @@ namespace OvercloudRandomWeather
         public UnityAction<bool> usePresetOnLoad_changed;
         public UnityAction<int> presetToUse_changed;
         public UnityAction<bool> disableAtmosphere_changed;
+        public UnityAction<bool> disableAtmosphereOverall_changed;
 
         #endregion
 
         public override void ModLoaded()
         {
-            HarmonyInstance harmonyInstance = HarmonyInstance.Create("dankuwos.overcloud"); // If you're copying my code, change "dankuwos.overcloud"
+            HarmonyInstance harmonyInstance = HarmonyInstance.Create("dankuwos.overcloud");
             harmonyInstance.PatchAll(Assembly.GetExecutingAssembly());
 
             base.ModLoaded();
@@ -296,9 +289,19 @@ namespace OvercloudRandomWeather
             modSettings.CreateCustomLabel("");
 
             disableAtmosphere_changed += disableAtmosphere_Setting;
+            modSettings.CreateCustomLabel("  DOESN'T DO ANYTHING IF DISABLE CLOUDS ISN'T ENABLED");
             modSettings.CreateCustomLabel("  Disable Atmosphere when you have disable clouds enabled, turns");
             modSettings.CreateCustomLabel("  off atmospheric scattering, fog, and probably some other stuff.");
-            modSettings.CreateBoolSetting("  Disable Atmosphere | Default: False", disableAtmosphere_changed, settings.disableAtmosphere);
+            modSettings.CreateBoolSetting("  NO CLOUDS ATMOSPHERE | Default: False", disableAtmosphere_changed, settings.disableAtmosphere);
+
+
+
+            modSettings.CreateCustomLabel("");
+
+            disableAtmosphereOverall_changed += disableAtmosphereOverall_Setting;
+            modSettings.CreateCustomLabel("  Disable Atmosphere with clouds on, turns");
+            modSettings.CreateCustomLabel("  off atmospheric scattering, fog, and probably some other stuff.");
+            modSettings.CreateBoolSetting("  Disable Atmosphere | Default: False", disableAtmosphereOverall_changed, settings.disableAtmosphereOverall);
 
 
             VTOLAPI.CreateSettingsMenu(modSettings);
@@ -406,21 +409,21 @@ namespace OvercloudRandomWeather
 
         void OvercloudElapsed(object sender, ElapsedEventArgs e)
         {
-            var getScenario = PilotSaveManager.currentScenario;
-                if (settings.doNightTime == true)
-                {
-                    GameSettings.SetGameSettingValue("USE_OVERCLOUD", true, true);
-                }
 
-                if (settings.doNightTime == false && currentEnv != "night")
-                {
-                    GameSettings.SetGameSettingValue("USE_OVERCLOUD", true, true);
-                }
+            if (settings.doNightTime == true)
+            {
+                GameSettings.SetGameSettingValue("USE_OVERCLOUD", true, true);
+            }
 
-                if (settings.doNightTime == false && currentEnv == "night")
-                {
-                    GameSettings.SetGameSettingValue("USE_OVERCLOUD", false, true);
-                }
+            if (settings.doNightTime == false && currentEnv != "night")
+            {
+                GameSettings.SetGameSettingValue("USE_OVERCLOUD", true, true);
+            }
+
+            if (settings.doNightTime == false && currentEnv == "night")
+            {
+                GameSettings.SetGameSettingValue("USE_OVERCLOUD", false, true);
+            }
         }
 
         #endregion
@@ -438,23 +441,24 @@ namespace OvercloudRandomWeather
         void OvercloudSelectElapsed(object sender, ElapsedEventArgs e)
         {
             var getScenario = PilotSaveManager.currentScenario;
-                if (settings.doNightTime == true)
-                {
+
+            if (settings.doNightTime == true)
+            {
                     GameSettings.SetGameSettingValue("USE_OVERCLOUD", true, true);
+            }
+            else
+            {
+                if (getScenario.environmentName != "night")
+                {
+                    Debug.Log("environmentName is Day or Morning, attempting to set OC to true. OCRW");
+                        GameSettings.SetGameSettingValue("USE_OVERCLOUD", true, true);
                 }
                 else
                 {
-                    if (getScenario.environmentName != "night")
-                    {
-                        Debug.Log("environmentName is Day or Morning, attempting to set OC to true");
-                        GameSettings.SetGameSettingValue("USE_OVERCLOUD", true, true);
-                    }
-                    else
-                    {
-                        Debug.Log("environmentName is Night, attempting to set OC to false");
+                        Debug.Log("environmentName is Night, attempting to set OC to false. OCRW");
                         GameSettings.SetGameSettingValue("USE_OVERCLOUD", false, true);
-                    }
                 }
+            }
         }
 
         #endregion
@@ -559,12 +563,18 @@ namespace OvercloudRandomWeather
             settings.disableAtmosphere = newval;
             settingsChanged = true;
         }
+        public void disableAtmosphereOverall_Setting(bool newval)
+        {
+            settings.disableAtmosphereOverall = newval;
+            settingsChanged = true;
+        }
 
         #endregion
 
 
         private void SceneLoaded(VTOLScenes scene)
         {
+            GameSettings.TryGetGameSettingValue("USE_OVERCLOUD", out bool isOverCloudBreakingShit);
             switch (scene)
             {
                 #region ReadyRoom
@@ -576,6 +586,11 @@ namespace OvercloudRandomWeather
                     sceneLoaded = false;
                     quickSavedTimeOfDay = 25;
 
+                    if (isOverCloudBreakingShit == true)
+                    {
+                        GameSettings.SetGameSettingValue("USE_OVERCLOUD", false, true);
+                    }
+
                     break;
 
                 #endregion
@@ -583,12 +598,13 @@ namespace OvercloudRandomWeather
                 #region Vehicle Config
 
                 case VTOLScenes.VehicleConfiguration:
+
+                    Debug.Log("oc is " + isOverCloudBreakingShit.ToString() + ". OCRW");
+
                     GameSettings.SetGameSettingValue("USE_OVERCLOUD", false, true);
+
                     if (settings.useOvercloud == true && PilotSaveManager.currentScenario.mapSceneName != "Akutan")
                     {
-                        GameSettings.SetGameSettingValue("USE_OVERCLOUD", true, true);
-
-
                         if (VTScenario.currentScenarioInfo.selectableEnv == true)
                         {
                             StartOvercloudTimer();
@@ -619,14 +635,12 @@ namespace OvercloudRandomWeather
                         StopOvercloudSelectTimer();
                     }
 
-                    GameSettings.TryGetGameSettingValue<bool>("USE_OVERCLOUD", out bool isOvercloudEnabled);
-
-                    if (isOvercloudEnabled == true && settings.useRandomWeather && settings.disableCloudsOnly == false)
+                    if (isOverCloudBreakingShit == true && settings.useRandomWeather && settings.disableCloudsOnly == false)
                     {
                         StartRandomWeatherTimer();
                         runTimer = true; // :~)
                     }
-                    if (isOvercloudEnabled == true && settings.usePresetOnLoad == true)
+                    if (isOverCloudBreakingShit == true && settings.usePresetOnLoad == true)
                     {
                         OC.OverCloud.SetWeatherPreset(weatherPresets[settings.presetToUse - 1], 1f);
                     }
@@ -638,14 +652,18 @@ namespace OvercloudRandomWeather
                         SkyStuffs.SunPositionInSky();
                     }
 
-                    if (isOvercloudEnabled == true)
+                    if (isOverCloudBreakingShit == true)
                     {
-                            SkyStuffs.DisableNGSS_Directional();
+                        SkyStuffs.DisableNGSS_Directional();
                     }
 
                     if (settings.disableCloudsOnly == true)
                     {
                         DisableCloudsOnly();
+                    }
+                    else if (settings.disableAtmosphereOverall == true)
+                    {
+                        DisableAtmosphereOverall();
                     }
 
                     break;
@@ -670,10 +688,18 @@ namespace OvercloudRandomWeather
                 overCloudCamera.GetComponent<OC.OverCloudCamera>().renderAtmosphere = !settings.disableAtmosphere;
             }
         }
+        public static void DisableAtmosphereOverall()
+        {
+            Camera[] overCloudCameras = Camera.allCameras;
+            foreach (Camera overCloudCamera in overCloudCameras)
+            {
+                overCloudCamera.GetComponent<OC.OverCloudCamera>().renderAtmosphere = !settings.disableAtmosphereOverall;
+            }
+        }
 
         public void Update()
         {
-            GameSettings.TryGetGameSettingValue<bool>("USE_OVERCLOUD", out bool isOvercloudEnabled);
+            GameSettings.TryGetGameSettingValue("USE_OVERCLOUD", out bool isOvercloudEnabled);
             if (settings.useOvercloud == true && isOvercloudEnabled == true && sceneLoaded == true)
             {
                 #region Weather Keybinds
@@ -762,19 +788,13 @@ namespace OvercloudRandomWeather
                 if (Rewired.ReInput.controllers.Keyboard.GetKeyDown(KeyCode.Keypad2))
                 {
                     OC.OverCloud.timeOfDay.latitude = 62f;
-                    OC.OverCloud.timeOfDay.longitude = -3f;
+                    OC.OverCloud.timeOfDay.longitude = 28f;
                 }
 
                 if (Rewired.ReInput.controllers.Keyboard.GetKeyDown(KeyCode.Keypad3))
                 {
                     OC.OverCloud.timeOfDay.latitude = 28f;
                     OC.OverCloud.timeOfDay.longitude = 23f;
-                }
-
-                if (Rewired.ReInput.controllers.Keyboard.GetKeyDown(KeyCode.Keypad4))
-                {
-                    OC.OverCloud.timeOfDay.latitude = 1f;
-                    OC.OverCloud.timeOfDay.longitude = 20f;
                 }
 
                 #endregion
@@ -792,10 +812,9 @@ namespace OvercloudRandomWeather
                         //overCloudCamera.GetComponent<OC.OverCloudCamera>().renderVolumetricClouds = !overCloudCamera.GetComponent<OC.OverCloudCamera>().renderVolumetricClouds;
                         //overCloudCamera.GetComponent<OC.OverCloudCamera>().renderAtmosphere = !overCloudCamera.GetComponent<OC.OverCloudCamera>().renderAtmosphere;
                     }
-                    overCloudCamera1.render2DFallback = !overCloudCamera1.render2DFallback;
                 }
 
-                if (Rewired.ReInput.controllers.Keyboard.GetKeyDown(KeyCode.B))
+                if (Rewired.ReInput.controllers.Keyboard.GetKeyDown(KeyCode.S))
                 {
                     Camera[] overCloudCameras = Camera.allCameras;
                     foreach (Camera overCloudCamera in overCloudCameras)
@@ -806,10 +825,9 @@ namespace OvercloudRandomWeather
                         //overCloudCamera.GetComponent<OC.OverCloudCamera>().renderVolumetricClouds = !overCloudCamera.GetComponent<OC.OverCloudCamera>().renderVolumetricClouds;
                         //overCloudCamera.GetComponent<OC.OverCloudCamera>().renderAtmosphere = !overCloudCamera.GetComponent<OC.OverCloudCamera>().renderAtmosphere;
                     }
-                    overCloudCamera1.renderRainMask = !overCloudCamera1.renderRainMask;
                 }
 
-                if (Rewired.ReInput.controllers.Keyboard.GetKeyDown(KeyCode.C))
+                if (Rewired.ReInput.controllers.Keyboard.GetKeyDown(KeyCode.D))
                 {
                     Camera[] overCloudCameras = Camera.allCameras;
                     foreach (Camera overCloudCamera in overCloudCameras)
@@ -820,10 +838,9 @@ namespace OvercloudRandomWeather
                         //overCloudCamera.GetComponent<OC.OverCloudCamera>().renderVolumetricClouds = !overCloudCamera.GetComponent<OC.OverCloudCamera>().renderVolumetricClouds;
                         //overCloudCamera.GetComponent<OC.OverCloudCamera>().renderAtmosphere = !overCloudCamera.GetComponent<OC.OverCloudCamera>().renderAtmosphere;
                     }
-                    overCloudCamera1.renderScatteringMask = !overCloudCamera1.renderScatteringMask;
                 }
 
-                if (Rewired.ReInput.controllers.Keyboard.GetKeyDown(KeyCode.D))
+                if (Rewired.ReInput.controllers.Keyboard.GetKeyDown(KeyCode.F))
                 {
                     Camera[] overCloudCameras = Camera.allCameras;
                     foreach (Camera overCloudCamera in overCloudCameras)
@@ -834,10 +851,9 @@ namespace OvercloudRandomWeather
                         overCloudCamera.GetComponent<OC.OverCloudCamera>().renderVolumetricClouds = !overCloudCamera.GetComponent<OC.OverCloudCamera>().renderVolumetricClouds;
                         //overCloudCamera.GetComponent<OC.OverCloudCamera>().renderAtmosphere = !overCloudCamera.GetComponent<OC.OverCloudCamera>().renderAtmosphere;
                     }
-                    overCloudCamera1.renderVolumetricClouds = !overCloudCamera1.renderVolumetricClouds;
                 }
 
-                if (Rewired.ReInput.controllers.Keyboard.GetKeyDown(KeyCode.E))
+                if (Rewired.ReInput.controllers.Keyboard.GetKeyDown(KeyCode.G))
                 {
                     Camera[] overCloudCameras = Camera.allCameras;
                     foreach (Camera overCloudCamera in overCloudCameras)
@@ -848,7 +864,6 @@ namespace OvercloudRandomWeather
                         //overCloudCamera.GetComponent<OC.OverCloudCamera>().renderVolumetricClouds = !overCloudCamera.GetComponent<OC.OverCloudCamera>().renderVolumetricClouds;
                         overCloudCamera.GetComponent<OC.OverCloudCamera>().renderAtmosphere = !overCloudCamera.GetComponent<OC.OverCloudCamera>().renderAtmosphere;
                     }
-                    overCloudCamera1.renderAtmosphere = !overCloudCamera1.renderAtmosphere;
                 }
 
                 #endregion
@@ -857,18 +872,22 @@ namespace OvercloudRandomWeather
 
         #region Cheese Save
 
-        // The code below was yoinked from cheese, I don't know how it works.
-        private void MissionReloaded()
-        {
-            CheckSave();
-        }
-
         private void OnApplicationQuit() // APPARENTLY THIS DOESN'T WORK HALF THE TIME!
         {
             GameSettings.SetGameSettingValue("USE_OVERCLOUD", false, true);
             CheckSave();
         }
 
+        // The code below was yoinked from cheese, I don't know how it works.
+        private void MissionReloaded()
+        {
+            CheckSave();
+
+            if (settings.disableAtmosphereOverall == true)
+            {
+                DisableAtmosphereOverall();
+            }
+        }
        
         private void CheckSave() 
         {

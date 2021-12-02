@@ -43,9 +43,6 @@
     <Reference Include="Rewired_Core">
       <HintPath>..\..\..\..\..\VTOLVR_Data\Managed\Rewired_Core.dll</HintPath>
     </Reference>
-    <Reference Include="Rewired_Windows_Lib">
-      <HintPath>..\..\..\..\..\VTOLVR_Data\Managed\Rewired_Windows_Lib.dll</HintPath>
-    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Xml.Linq" />
@@ -74,10 +71,7 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="QuicksavePatch.cs" />
-    <Compile Include="SCamPatch.cs" />
-    <Compile Include="BiomePatch.cs" />
-    <Compile Include="EnvironmentPatch.cs" />
+    <Compile Include="Patches.cs" />
     <Compile Include="Main.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="SkyStuffs.cs" />
