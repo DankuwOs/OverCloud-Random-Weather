@@ -1,9 +1,22 @@
-﻿using UnityEngine;
+﻿using System;
+using UnityEngine;
+using UnityEngine.SceneManagement;
+using Harmony;
+using System.Reflection;
+using System.Collections;
+using System.Net.Sockets;
+using UnityEngine.Events;
+using System.Collections.Generic;
+using System.Linq;
+using Random = System.Random;
+using Valve.Newtonsoft.Json;
 
 namespace OvercloudRandomWeather
 {
-    class SkyStuffs
+    class SkyStuffs : MonoBehaviour
     {
+        public static Random rand = new Random();
+
         public static void DisableNGSS_Directional() // If you've ever used OverCloud and wondered "Why is there 2 different shadows?" this is why.
         {
             Light[] ngss_Directional;
@@ -12,7 +25,7 @@ namespace OvercloudRandomWeather
             {
                 if (_ngss_Directional.name.Contains("Directional"))
                 {
-                   _ngss_Directional.intensity = 0f;
+                    _ngss_Directional.intensity = 0f;
                     Debug.Log("Set " + _ngss_Directional.name + " intensity to 0" + ". OCRW");
                 }
             }
@@ -78,6 +91,113 @@ namespace OvercloudRandomWeather
 
                     break;
             }
+        }
+
+
+        public static void LightningUpdate(GameObject lightning, GameObject vehicle)
+        {
+            VTOLVehicles whatAmI = VTOLAPI.GetPlayersVehicleEnum();
+            ModuleEngine[] engines = vehicle.GetComponentsInChildren<ModuleEngine>();
+            Battery battery = vehicle.GetComponentInChildren<Battery>();
+
+            SkyStuffs skyStuffs = (new GameObject("LightningUpdate")).AddComponent<SkyStuffs>();
+
+            float distance = Vector2.Distance(new Vector2(lightning.transform.position.x, lightning.transform.position.z), new Vector2(vehicle.transform.position.x, vehicle.transform.position.z));
+
+            if (distance <= 50f && (OC.OverCloud.IsInsideCloudVolume(vehicle.transform.position) || OC.OverCloud.IsBelowCloudVolume(vehicle.transform.position)))
+            {
+                skyStuffs.Events(vehicle, engines, battery, whatAmI);
+            }
+        }
+
+        public void Events(GameObject vehicle, ModuleEngine[] engines, Battery battery, VTOLVehicles whatAmI)
+        {
+            StartCoroutine(LightningStriked(vehicle, engines, battery, whatAmI));
+        }
+
+        public IEnumerator LightningStriked(GameObject vehicle, ModuleEngine[] engines, Battery battery, VTOLVehicles whatAmI)
+        {
+            StartCoroutine(AlternatorBoost(engines, whatAmI, 2));
+            battery.Drain(battery.maxCharge * 0.99f);
+
+            FuelTank fuelTank = vehicle.GetComponentInChildren<FuelTank>();
+            double range = 0.1 - 0.05;
+            fuelTank.RequestFuel(fuelTank.fuel * ((rand.NextDouble() * range) - 0.02));
+
+            switch (whatAmI)
+            {
+                case VTOLVehicles.AV42C:
+                case VTOLVehicles.FA26B:
+
+                    foreach (ModuleEngine engine in engines)
+                    {
+                        if (rand.Next(1, 20) == 1)
+                        {
+                            engine.FailEngine();
+                        }
+                    }
+
+                    break;
+                case VTOLVehicles.F45A:
+                    foreach (ModuleEngine engine in engines)
+                    {
+                        if (rand.Next(1, 5) == 1)
+                        {
+                            engine.FailEngine();
+                        }
+                    }
+
+                    break;
+            }
+            yield return new WaitForSeconds(3f);
+
+            foreach (ModuleEngine engine in engines)
+            {
+                engine.FullyRepairEngine();
+            }
+
+            yield return new WaitForSeconds(35f);
+            StopCoroutine(AlternatorBoost(engines, whatAmI, 2));
+
+            foreach (ModuleEngine engine in engines)
+            {
+                engine.alternatorChargeRate = 450f;
+            }
+        }
+
+        public IEnumerator AlternatorBoost(ModuleEngine[] engines, VTOLVehicles whatAmI, float boostage)
+        {
+            switch (whatAmI)
+            {
+                case VTOLVehicles.AV42C:
+                case VTOLVehicles.FA26B:
+
+                    foreach (ModuleEngine engine in engines)
+                    {
+                        engine.alternatorChargeRate = boostage;
+                    }
+
+                    break;
+                case VTOLVehicles.F45A:
+
+                    foreach (ModuleEngine engine in engines)
+                    {
+
+                        engine.alternatorChargeRate = boostage * 0.001f;
+                    }
+
+                    break;
+            }
+
+            yield return new WaitForSeconds(0.01f);
+
+            if (whatAmI != VTOLVehicles.F45A)
+            {
+                boostage *= 1.004f;
+            }
+            else
+                boostage *= 1.013f;
+            StartCoroutine(AlternatorBoost(engines, whatAmI, boostage));
         }
     }
 }

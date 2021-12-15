@@ -1,4 +1,5 @@
 ﻿using UnityEngine;
+using UnityEngine.Events;
 using UnityEngine.UI;
 using Harmony;
 
@@ -153,6 +154,16 @@ namespace OvercloudRandomWeather
                 OC.OverCloudCamera overCloudCamera = __instance.flybyCam.GetComponent<OC.OverCloudCamera>();
                 overCloudCamera.renderAtmosphere = !Main.settings.disableAtmosphereOverall;
             }
+        }
+    }
+    
+
+    [HarmonyPatch(typeof(OC.ExampleContent.Lightning), "RestartLightning")]
+    public static class LightningPatch
+    {
+        public static void Postfix()
+        {
+            SkyStuffs.LightningUpdate(OC.OverCloud.weather.lightning.gameObject, VTOLAPI.GetPlayersVehicleGameObject());
         }
     }
     #endregion

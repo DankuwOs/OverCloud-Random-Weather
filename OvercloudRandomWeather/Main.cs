@@ -86,6 +86,25 @@ namespace OvercloudRandomWeather
         /// </summary>
         public bool disableAtmosphereOverall = false;
 
+        /// <summary>
+        /// Maximum distance for the lightning to spawn.
+        /// </summary>
+        public float maximumDistance = 20000f;
+
+        /// <summary>
+        /// Minimum amount of seconds to pass before another strike can occur
+        /// </summary>
+        public float minimumInterval = 3f;
+
+        /// <summary>
+        /// Maximum amount of seconds to pass before another strike can occur
+        /// </summary>
+        public float maximumInterval = 13f;
+
+        /// <summary>
+        /// Chance for lightning to strike multiple times (in the same spot?)
+        /// </summary>
+        public float restrikeChance = 15f;
     }
 
     public class Main : VTOLMOD
@@ -184,7 +203,10 @@ namespace OvercloudRandomWeather
         public UnityAction<int> presetToUse_changed;
         public UnityAction<bool> disableAtmosphere_changed;
         public UnityAction<bool> disableAtmosphereOverall_changed;
-
+        public UnityAction<float> maximumDistance_changed;
+        public UnityAction<float> minimumInterval_changed;
+        public UnityAction<float> maximumInterval_changed;
+        public UnityAction<float> restrikeChance_changed;
         #endregion
 
         public override void ModLoaded()
@@ -288,7 +310,7 @@ namespace OvercloudRandomWeather
 
             modSettings.CreateCustomLabel("");
 
-            disableAtmosphere_changed += disableAtmosphere_Setting;
+            disableAtmosphere_changed += DisableAtmosphere_Setting;
             modSettings.CreateCustomLabel("  DOESN'T DO ANYTHING IF DISABLE CLOUDS ISN'T ENABLED");
             modSettings.CreateCustomLabel("  Disable Atmosphere when you have disable clouds enabled, turns");
             modSettings.CreateCustomLabel("  off atmospheric scattering, fog, and probably some other stuff.");
@@ -298,11 +320,45 @@ namespace OvercloudRandomWeather
 
             modSettings.CreateCustomLabel("");
 
-            disableAtmosphereOverall_changed += disableAtmosphereOverall_Setting;
+            disableAtmosphereOverall_changed += DisableAtmosphereOverall_Setting;
             modSettings.CreateCustomLabel("  Disable Atmosphere with clouds on, turns");
             modSettings.CreateCustomLabel("  off atmospheric scattering, fog, and probably some other stuff.");
             modSettings.CreateBoolSetting("  Disable Atmosphere | Default: False", disableAtmosphereOverall_changed, settings.disableAtmosphereOverall);
 
+            modSettings.CreateCustomLabel("");
+            modSettings.CreateCustomLabel("");
+            modSettings.CreateCustomLabel("LIGHTNING STRIKE SETTINGS");
+            modSettings.CreateCustomLabel("");
+
+
+            maximumDistance_changed += MaximumDistance_Setting;
+            modSettings.CreateCustomLabel("  Maximum distance lightning can strike from you.");
+            modSettings.CreateFloatSetting("  Maximum Distance (in meters)", maximumDistance_changed, settings.maximumDistance, 0, 20000);
+            modSettings.CreateCustomLabel("  Default 20000 (50 will hit)");
+
+            modSettings.CreateCustomLabel("");
+
+
+            minimumInterval_changed += MinimumInterval_Setting;
+            modSettings.CreateCustomLabel("  Minimum amount of time between strikes.");
+            modSettings.CreateFloatSetting("  Minimum Interval (in seconds)", minimumInterval_changed, settings.minimumInterval, 0, 20000);
+            modSettings.CreateCustomLabel("  Default 3");
+
+            modSettings.CreateCustomLabel("");
+
+
+            maximumInterval_changed += MaximumInterval_Setting;
+            modSettings.CreateCustomLabel("  Maximum amount of time between strikes.");
+            modSettings.CreateFloatSetting("  Maximum Interval (in seconds)", maximumInterval_changed, settings.maximumInterval, 0, 20000);
+            modSettings.CreateCustomLabel("  Default 13");
+
+            modSettings.CreateCustomLabel("");
+
+
+            restrikeChance_changed += RestrikeChance_Setting;
+            modSettings.CreateCustomLabel("  Chance for lightning to strike again.");
+            modSettings.CreateFloatSetting("  Restrike Chance", restrikeChance_changed, settings.restrikeChance, 0, 100);
+            modSettings.CreateCustomLabel("  Default 15% (maybe doesn't work?)");
 
             VTOLAPI.CreateSettingsMenu(modSettings);
 
@@ -400,7 +456,7 @@ namespace OvercloudRandomWeather
         #region OverCloud Timer
         void StartOvercloudTimer() // Starts the Overcloud timer. Use ocTimer.Stop(); and ocTimer.Dispose(); to stop.
         {
-            ocTimer = new Timer(100);
+            ocTimer = new Timer(2000);
             ocTimer.Elapsed += OvercloudElapsed; // Each time ocTimer elapses it runs OvercloudElapsed.
             ocTimer.AutoReset = true;
             ocTimer.Start();
@@ -409,20 +465,25 @@ namespace OvercloudRandomWeather
 
         void OvercloudElapsed(object sender, ElapsedEventArgs e)
         {
-
-            if (settings.doNightTime == true)
+            GameSettings.TryGetGameSettingValue("USE_OVERCLOUD", out bool isOverCloudBreakingShit);
+            if (isOverCloudBreakingShit == false)
             {
-                GameSettings.SetGameSettingValue("USE_OVERCLOUD", true, true);
+                if (settings.doNightTime == true)
+                {
+                    GameSettings.SetGameSettingValue("USE_OVERCLOUD", true, true);
+                }
+
+                if (settings.doNightTime == false && currentEnv != "night")
+                {
+                    GameSettings.SetGameSettingValue("USE_OVERCLOUD", true, true);
+                }
             }
-
-            if (settings.doNightTime == false && currentEnv != "night")
+            else
             {
-                GameSettings.SetGameSettingValue("USE_OVERCLOUD", true, true);
-            }
-
-            if (settings.doNightTime == false && currentEnv == "night")
-            {
-                GameSettings.SetGameSettingValue("USE_OVERCLOUD", false, true);
+                if (settings.doNightTime == false && currentEnv == "night")
+                {
+                    GameSettings.SetGameSettingValue("USE_OVERCLOUD", false, true);
+                }
             }
         }
 
@@ -431,7 +492,7 @@ namespace OvercloudRandomWeather
         #region OverCloud Select Timer
         void StartOvercloudSelectTimer() // Starts the Overcloud timer. Use ocTimer.Stop(); and ocTimer.Dispose(); to stop.
         {
-            ocTimerSelect = new Timer(500);
+            ocTimerSelect = new Timer(1000);
             ocTimerSelect.Elapsed += OvercloudSelectElapsed; // Each time ocTimer elapses it runs OvercloudElapsed.
             ocTimerSelect.AutoReset = true;
             ocTimerSelect.Start();
@@ -558,14 +619,34 @@ namespace OvercloudRandomWeather
             settings.presetToUse = newval;
             settingsChanged = true;
         }
-        public void disableAtmosphere_Setting(bool newval)
+        public void DisableAtmosphere_Setting(bool newval)
         {
             settings.disableAtmosphere = newval;
             settingsChanged = true;
         }
-        public void disableAtmosphereOverall_Setting(bool newval)
+        public void DisableAtmosphereOverall_Setting(bool newval)
         {
             settings.disableAtmosphereOverall = newval;
+            settingsChanged = true;
+        }
+        public void MaximumDistance_Setting(float newval)
+        {
+            settings.maximumDistance = newval;
+            settingsChanged = true;
+        }
+        public void MinimumInterval_Setting(float newval)
+        {
+            settings.minimumInterval = newval;
+            settingsChanged = true;
+        }
+        public void MaximumInterval_Setting(float newval)
+        {
+            settings.maximumInterval = newval;
+            settingsChanged = true;
+        }
+        public void RestrikeChance_Setting(float newval)
+        {
+            settings.restrikeChance = newval;
             settingsChanged = true;
         }
 
@@ -581,8 +662,6 @@ namespace OvercloudRandomWeather
 
                 case VTOLScenes.ReadyRoom:
                     StopRandomWeatherTimer();
-                    StopOvercloudTimer();
-                    StopOvercloudSelectTimer();
                     sceneLoaded = false;
                     quickSavedTimeOfDay = 25;
 
@@ -666,9 +745,19 @@ namespace OvercloudRandomWeather
                         DisableAtmosphereOverall();
                     }
 
+                    var lightning = OC.OverCloud.weather.lightning;
+
+                    lightning.distanceMin = 0f;
+                    lightning.distanceMax = settings.maximumDistance;
+
+                    lightning.intervalMin = settings.minimumInterval;
+                    lightning.intervalMax = settings.maximumInterval;
+
+                    lightning.restrikeChance = settings.restrikeChance;
+
                     break;
 
-                #endregion
+                    #endregion
             }
 
             Debug.Log("SCENE LOADED: " + scene + ". OCRW");
@@ -699,8 +788,7 @@ namespace OvercloudRandomWeather
 
         public void Update()
         {
-            GameSettings.TryGetGameSettingValue("USE_OVERCLOUD", out bool isOvercloudEnabled);
-            if (settings.useOvercloud == true && isOvercloudEnabled == true && sceneLoaded == true)
+            if (settings.useOvercloud == true && sceneLoaded == true)
             {
                 #region Weather Keybinds
 
