@@ -2,10 +2,17 @@ using System;
 using System.Timers;
 using UnityEngine;
 using UnityEngine.Events;
+using UnityEngine.Playables;
 using System.Reflection;
 using System.IO;
 using Valve.Newtonsoft.Json;
 using Harmony;
+using UnityEngine.SceneManagement;
+using System.Collections;
+using System.Net.Sockets;
+using System.Collections.Generic;
+using System.Linq;
+using Random = System.Random;
 
 namespace OvercloudRandomWeather
 {
@@ -89,7 +96,7 @@ namespace OvercloudRandomWeather
         /// <summary>
         /// Maximum distance for the lightning to spawn.
         /// </summary>
-        public float maximumDistance = 20000f;
+        public float maximumDistance = 7000f;
 
         /// <summary>
         /// Minimum amount of seconds to pass before another strike can occur
@@ -188,6 +195,11 @@ namespace OvercloudRandomWeather
         /// </summary>
         public static string weatherForecastTime;
 
+        /// <summary>
+        /// lightning mesh...
+        /// </summary>
+        public static Mesh lightningMesh;
+
         public UnityAction<bool> overcloud_changed;
         public UnityAction<bool> disableCloudsOnly_changed;
         public UnityAction<bool> fixWater_changed;
@@ -218,6 +230,7 @@ namespace OvercloudRandomWeather
 
             VTOLAPI.SceneLoaded += SceneLoaded;
             VTOLAPI.MissionReloaded += MissionReloaded;
+
 
             #region Settings
 
@@ -334,7 +347,7 @@ namespace OvercloudRandomWeather
             maximumDistance_changed += MaximumDistance_Setting;
             modSettings.CreateCustomLabel("  Maximum distance lightning can strike from you.");
             modSettings.CreateFloatSetting("  Maximum Distance (in meters)", maximumDistance_changed, settings.maximumDistance, 0, 20000);
-            modSettings.CreateCustomLabel("  Default 20000 (50 will hit)");
+            modSettings.CreateCustomLabel("  Default 7000 (50 will hit)");
 
             modSettings.CreateCustomLabel("");
 
@@ -365,8 +378,6 @@ namespace OvercloudRandomWeather
             #endregion
 
         }
-
-
         #region Random Weather Timer
 
         private static void StartRandomWeatherTimer() // Starts the random weather timer,
@@ -652,7 +663,6 @@ namespace OvercloudRandomWeather
 
         #endregion
 
-
         private void SceneLoaded(VTOLScenes scene)
         {
             GameSettings.TryGetGameSettingValue("USE_OVERCLOUD", out bool isOverCloudBreakingShit);
@@ -714,12 +724,12 @@ namespace OvercloudRandomWeather
                         StopOvercloudSelectTimer();
                     }
 
-                    if (isOverCloudBreakingShit == true && settings.useRandomWeather && settings.disableCloudsOnly == false)
+                    if (settings.useRandomWeather && settings.disableCloudsOnly == false)
                     {
                         StartRandomWeatherTimer();
                         runTimer = true; // :~)
                     }
-                    if (isOverCloudBreakingShit == true && settings.usePresetOnLoad == true)
+                    if (settings.usePresetOnLoad == true)
                     {
                         OC.OverCloud.SetWeatherPreset(weatherPresets[settings.presetToUse - 1], 1f);
                     }
@@ -730,11 +740,7 @@ namespace OvercloudRandomWeather
                     {
                         SkyStuffs.SunPositionInSky();
                     }
-
-                    if (isOverCloudBreakingShit == true)
-                    {
                         SkyStuffs.DisableNGSS_Directional();
-                    }
 
                     if (settings.disableCloudsOnly == true)
                     {
@@ -744,6 +750,7 @@ namespace OvercloudRandomWeather
                     {
                         DisableAtmosphereOverall();
                     }
+
 
                     var lightning = OC.OverCloud.weather.lightning;
 
@@ -755,14 +762,63 @@ namespace OvercloudRandomWeather
 
                     lightning.restrikeChance = settings.restrikeChance;
 
-                    break;
+                    LightTime();
 
-                    #endregion
+                    break;
             }
+
+            #endregion
 
             Debug.Log("SCENE LOADED: " + scene + ". OCRW");
 
             CheckSave();
+        }
+
+        public static void LightTime()
+        {
+            GameObject[] go = new GameObject().scene.GetRootGameObjects();
+            List<Light> landingLight = SkyStuffs.GetAllChildren<Light>(go);
+
+            foreach (Light light in landingLight)
+            {
+                if (light.name == "Light" && (light.GetComponent<OC.OverCloudFogLight>().m_Mesh != null))
+                {
+                    lightningMesh = light.GetComponent<OC.OverCloudFogLight>().m_Mesh;
+                    FlightLogger.Log("Found lightning mesh: " + light.GetComponent<OC.OverCloudFogLight>().m_Mesh.name);
+                }
+            }
+
+            foreach (Light light in landingLight)
+            {
+                if (light.name == "LandingLight")
+                {
+                    light.color = new Color(1f, 0.9616486f, 0.8426415f);
+
+                    GameObject foggy = Instantiate(light.gameObject, light.gameObject.transform);
+                    foggy.AddComponent<Light>();
+                    foggy.GetComponent<Light>().range = 175f;
+                    foggy.GetComponent<Light>().spotAngle = 23f;
+                    foggy.GetComponent<Light>().intensity = 2f;
+                    foggy.GetComponent<Light>().color = new Color(1f, 0.9616486f, 0.8426415f);
+                    foggy.GetComponent<Light>().cullingMask = 0;
+                    foggy.GetComponent<Light>().enabled = true;
+                    foggy.SetActive(true);
+
+                    OC.OverCloudFogLight fogLight = foggy.AddComponent<OC.OverCloudFogLight>();
+
+                    Material mat = new Material(Resources.Load<Shader>("shaders/foglight"));
+                    fogLight.m_Material = mat;
+                    if (lightningMesh)
+                        fogLight.m_Mesh = lightningMesh;
+
+                    fogLight.minimumDensity = 0.512f;
+                    fogLight.intensity = 0.1f;
+                    fogLight.raymarchSteps = 18;
+                    fogLight.attenuationFactor = 1f;
+
+                    return;
+                }
+            }
         }
 
         public static void DisableCloudsOnly()
@@ -843,7 +899,6 @@ namespace OvercloudRandomWeather
                         Debug.Log("Pressed M, starting random weather timer. OCRW");
                     }
                 }
-
                 #endregion
 
                 if (settings.useDynamicTimeOfDay == true)
@@ -970,7 +1025,7 @@ namespace OvercloudRandomWeather
         private void MissionReloaded()
         {
             CheckSave();
-
+            LightTime();
             if (settings.disableAtmosphereOverall == true)
             {
                 DisableAtmosphereOverall();

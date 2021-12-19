@@ -156,12 +156,11 @@ namespace OvercloudRandomWeather
             }
         }
     }
-    
 
     [HarmonyPatch(typeof(OC.ExampleContent.Lightning), "RestartLightning")]
     public static class LightningPatch
     {
-        public static void Postfix()
+        public static void Postfix(OC.ExampleContent.Lightning __instance)
         {
             SkyStuffs.LightningUpdate(OC.OverCloud.weather.lightning.gameObject, VTOLAPI.GetPlayersVehicleGameObject());
         }

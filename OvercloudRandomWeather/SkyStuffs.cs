@@ -30,7 +30,6 @@ namespace OvercloudRandomWeather
                 }
             }
         }
-
         public static void EnableDynamicTimeOfDay()
         {
             OC.OverCloud.timeOfDay.enable = true;
@@ -169,6 +168,7 @@ namespace OvercloudRandomWeather
         {
             switch (whatAmI)
             {
+                case VTOLVehicles.None:
                 case VTOLVehicles.AV42C:
                 case VTOLVehicles.FA26B:
 
@@ -199,5 +199,18 @@ namespace OvercloudRandomWeather
                 boostage *= 1.013f;
             StartCoroutine(AlternatorBoost(engines, whatAmI, boostage));
         }
+
+
+
+        public static List<T> GetAllChildren<T>(GameObject[] objects) where T : Component
+        {
+            List<T> list = new List<T>();
+            foreach (GameObject go in objects)
+            {
+                list.Add(go.GetComponentsInChildren<T>(true));
+            }
+            return list;
+        }
+
     }
 }
